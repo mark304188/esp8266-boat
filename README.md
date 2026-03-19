@@ -50,7 +50,7 @@
 
 ## AI 生成说明
 
-本项目前端与板端代码主要由 ChatGLM（GLM-5） 生成，根据 GPL 相关协议，开源代码与对应的提示词。
+本项目前端与板端代码主要由 ChatGLM（GLM-5） 生成，根据 GPL 相关定义（The "source code" for a work means the preferred form of the work for making modifications to it.  "Object code" means any non-source form of a work.），开源代码与对应的提示词。
 
 ### 前端提示词如下
 
