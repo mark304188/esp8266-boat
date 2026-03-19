@@ -75,5 +75,5 @@
 ## 免责声明
 
 本项目为课程作业，仅供学习与参考，实际使用时请确保安全。
+![687c57da471e10b3542d33ccea94f10f](https://github.com/user-attachments/assets/5dfd542b-8684-450e-85dd-94e96464e72e)
 
-![687c57da471e10b3542d33ccea94f10f](https://github.com/user-attachments/assets/6c1f2c17-3df3-4a45-96f4-725c42da7d9b)
