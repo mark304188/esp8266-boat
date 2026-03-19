@@ -1,0 +1,705 @@
+// index_html.h
+#ifndef INDEX_HTML_H
+#define INDEX_HTML_H
+
+// 使用 RAW 字符串字面量，避免繁琐的转义字符
+// PROGMEM 将数据存储在 Flash 中，节省 RAM
+const char INDEX_HTML[] PROGMEM = R"=====(
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>船只遥控</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            background: #000;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 连接状态 */
+        .status {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 100;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff0000;
+            box-shadow: 0 0 8px #ff0000;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00;
+        }
+
+        .status-text {
+            opacity: 0.9;
+        }
+
+        /* 主控制区 */
+        .main-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+            padding: 20px;
+        }
+
+        /* 速度显示 */
+        .speed-displays {
+            display: flex;
+            justify-content: space-between;
+            width: 80vmin;
+            margin-bottom: 20px;
+            padding: 0 10%;
+        }
+
+        .speed-item {
+            text-align: center;
+            min-width: 90px;
+        }
+
+        .speed-label {
+            font-size: 12px;
+            opacity: 0.5;
+            margin-bottom: 4px;
+        }
+
+        .speed-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.1s;
+        }
+
+        .speed-positive { color: #00ff00; }
+        .speed-negative { color: #ff0000; }
+        .speed-zero { color: #fff; }
+
+        /* 摇杆容器 */
+        .joystick-wrapper {
+            position: relative;
+            width: 80vmin;
+            height: 80vmin;
+            max-width: 400px;
+            max-height: 400px;
+        }
+
+        .joystick-outer {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #333;
+            border-radius: 50%;
+            position: relative;
+            background: #0a0a0a;
+        }
+
+        /* 中心十字线 */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: #222;
+        }
+
+        .crosshair::before {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+            top: -50vmin;
+            height: 100vmin;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            height: 1px;
+            width: 100%;
+            top: 50%;
+            left: -50vmin;
+            width: 100vmin;
+            transform: translateY(-50%);
+        }
+
+        .joystick-inner {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            left: 50%;
+            top: 50%;
+            cursor: grab;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: box-shadow 0.2s;
+        }
+
+        .joystick-inner:active {
+            cursor: grabbing;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 400px) {
+            .joystick-inner {
+                width: 60px;
+                height: 60px;
+            }
+        }
+
+        /* 曲线区域 */
+        .chart-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #000;
+            border-top: 1px solid #222;
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 48px;
+            overflow: hidden;
+            z-index: 50;
+        }
+
+        .chart-container.expanded {
+            height: calc(25vh + 48px);
+        }
+
+        .chart-toggle {
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-bottom: 1px solid #222;
+            gap: 8px;
+        }
+
+        .chart-toggle:hover {
+            background: #0a0a0a;
+        }
+
+        .toggle-arrow {
+            font-size: 10px;
+            transition: transform 0.3s;
+        }
+
+        .chart-container.expanded .toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        .toggle-text {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .chart-content {
+            display: flex;
+            height: calc(100% - 48px);
+            padding: 2%;
+            gap: 2%;
+        }
+
+        .chart-panel {
+            flex: 1;
+            border: 1px solid #333;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #050505;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .chart-label {
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-weight: 600;
+            opacity: 0.8;
+        }
+
+        .chart-label.left { color: #0088ff; }
+        .chart-label.right { color: #00ff00; }
+
+        /* 响应式 */
+        @media (min-width: 768px) {
+            .status {
+                top: 24px;
+                right: 24px;
+                font-size: 15px;
+            }
+            .speed-value {
+                font-size: 32px;
+            }
+        }
+
+        /* 暗色模式适配 */
+        @media (prefers-color-scheme: light) {
+            body {
+                background: #fff;
+                color: #000;
+            }
+            .status-dot {
+                box-shadow: none;
+            }
+            .joystick-outer {
+                background: #f5f5f5;
+                border-color: #ddd;
+            }
+            .joystick-inner {
+                background: #333;
+            }
+            .crosshair::before,
+            .crosshair::after {
+                background: #ddd;
+            }
+            .chart-container {
+                background: #fff;
+                border-top-color: #ddd;
+            }
+            .chart-toggle {
+                border-bottom-color: #ddd;
+            }
+            .chart-toggle:hover {
+                background: #f5f5f5;
+            }
+            .chart-panel {
+                border-color: #ddd;
+                background: #fafafa;
+            }
+            .speed-zero { color: #000; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 连接状态 -->
+    <div class="status">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">未连接</span>
+    </div>
+
+    <!-- 主控制区 -->
+    <div class="main-control">
+        <!-- 速度显示 -->
+        <div class="speed-displays">
+            <div class="speed-item">
+                <div class="speed-label">左桨</div>
+                <div class="speed-value speed-zero" id="speedLeft">0</div>
+            </div>
+            <div class="speed-item">
+                <div class="speed-label">右桨</div>
+                <div class="speed-value speed-zero" id="speedRight">0</div>
+            </div>
+        </div>
+
+        <!-- 摇杆 -->
+        <div class="joystick-wrapper">
+            <div class="joystick-outer" id="joystickOuter">
+                <div class="crosshair"></div>
+                <div class="joystick-inner" id="joystickInner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 曲线区域 -->
+    <div class="chart-container" id="chartContainer">
+        <div class="chart-toggle" id="chartToggle">
+            <span class="toggle-arrow">▲</span>
+            <span class="toggle-text">显示曲线</span>
+        </div>
+        <div class="chart-content">
+            <div class="chart-panel">
+                <canvas class="chart-canvas" id="chartLeft"></canvas>
+                <div class="chart-label left">L</div>
+            </div>
+            <div class="chart-panel">
+                <canvas class="chart-canvas" id="chartRight"></canvas>
+                <div class="chart-label right">R</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ 配置常量 ============
+        const WS_URL = 'ws://192.168.4.1:81';
+        const SEND_INTERVAL = 10; // 100Hz = 10ms
+        const DEADZONE = 0.1;
+        const DATA_POINTS = 300; // 3秒 × 100Hz
+        const CONNECT_THRESHOLD = 30;
+
+        // ============ 状态变量 ============
+        let ws = null;
+        let isConnected = false;
+        let replyCount = 0;
+        let pendingReplies = 0;
+
+        let joystickX = 0;
+        let joystickY = 0;
+        let isDragging = false;
+
+        let leftMotor = 0;
+        let rightMotor = 0;
+
+        let leftData = new Array(DATA_POINTS).fill(0);
+        let rightData = new Array(DATA_POINTS).fill(0);
+
+        let chartExpanded = false;
+
+        // ============ DOM元素 ============
+        const joystickOuter = document.getElementById('joystickOuter');
+        const joystickInner = document.getElementById('joystickInner');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const speedLeftEl = document.getElementById('speedLeft');
+        const speedRightEl = document.getElementById('speedRight');
+        const chartContainer = document.getElementById('chartContainer');
+        const chartToggle = document.getElementById('chartToggle');
+        const chartLeftEl = document.getElementById('chartLeft');
+        const chartRightEl = document.getElementById('chartRight');
+
+        // ============ 摇杆控制 ============
+        function getJoystickInput(clientX, clientY) {
+            const rect = joystickOuter.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const radius = Math.max(1, rect.width / 2);
+
+            let dx = (clientX - centerX) / radius;
+            let dy = (clientY - centerY) / radius;
+
+            // 限制在圆内
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > 1) {
+                dx /= distance;
+                dy /= distance;
+            }
+
+            return { dx, dy };
+        }
+
+        function updateJoystickPosition(dx, dy) {
+            // 应用死区（左右10%）
+            let effectiveX = dx;
+            if (Math.abs(dx) < DEADZONE) {
+                effectiveX = 0;
+            }
+
+            joystickX = effectiveX;
+            joystickY = -dy; // Y轴反转
+
+            // 更新摇杆视觉位置
+            joystickInner.style.left = `${50 + dx * 50}%`;
+            joystickInner.style.top = `${50 + dy * 50}%`;
+
+            // 计算电机输出
+            calculateMotors();
+        }
+
+        function calculateMotors() {
+            // 差速转向：前进 + 转向
+            const forward = joystickY;
+            const turn = joystickX;
+
+            leftMotor = clamp(forward + turn, -1, 1);
+            rightMotor = clamp(forward - turn, -1, 1);
+
+            updateSpeedDisplay();
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function updateSpeedDisplay() {
+            const leftPct = Math.round(leftMotor * 100);
+            const rightPct = Math.round(rightMotor * 100);
+
+            speedLeftEl.textContent = formatSpeed(leftPct);
+            speedLeftEl.className = 'speed-value ' + getSpeedClass(leftPct);
+
+            speedRightEl.textContent = formatSpeed(rightPct);
+            speedRightEl.className = 'speed-value ' + getSpeedClass(rightPct);
+        }
+
+        function formatSpeed(value) {
+            if (value > 0) return '+' + value;
+            return String(value);
+        }
+
+        function getSpeedClass(value) {
+            if (value > 0) return 'speed-positive';
+            if (value < 0) return 'speed-negative';
+            return 'speed-zero';
+        }
+
+        function resetJoystick() {
+            joystickX = 0;
+            joystickY = 0;
+            joystickInner.style.left = '50%';
+            joystickInner.style.top = '50%';
+            joystickInner.style.transition = 'left 0.2s, top 0.2s';
+            setTimeout(() => {
+                joystickInner.style.transition = '';
+            }, 200);
+            calculateMotors();
+        }
+
+        // ============ 事件监听 ============
+        function handleStart(clientX, clientY) {
+            isDragging = true;
+            const input = getJoystickInput(clientX, clientY);
+            updateJoystickPosition(input.dx, input.dy);
+        }
+
+        function handleMove(clientX, clientY) {
+            if (!isDragging) return;
+            const input = getJoystickInput(clientX, clientY);
+            updateJoystickPosition(input.dx, input.dy);
+        }
+
+        function handleEnd() {
+            if (isDragging) {
+                isDragging = false;
+                resetJoystick();
+            }
+        }
+
+        // 鼠标事件
+        joystickOuter.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            handleStart(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            handleMove(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mouseup', handleEnd);
+
+        // 触摸事件
+        joystickOuter.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleStart(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleMove(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        document.addEventListener('touchend', handleEnd);
+        document.addEventListener('touchcancel', handleEnd);
+
+        // ============ WebSocket ============
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket(WS_URL);
+                ws.binaryType = 'arraybuffer'; // 提高潜在效率
+
+                ws.onopen = () => console.log('WebSocket 连接中...');
+
+                ws.onmessage = () => {
+                    replyCount++;
+                    pendingReplies = Math.max(0, pendingReplies - 1);
+                    if (replyCount >= CONNECT_THRESHOLD && !isConnected) {
+                        setConnectedState(true);
+                    }
+                };
+
+                ws.onclose = () => {
+                    setConnectedState(false);
+                    replyCount = 0;
+                    pendingReplies = 0;
+                    setTimeout(connectWebSocket, 2000);
+                };
+
+                ws.onerror = () => {
+                    setConnectedState(false);
+                };
+            } catch (e) {
+                console.error('WebSocket 错误:', e);
+                setTimeout(connectWebSocket, 2000);
+            }
+        }
+
+        function setConnectedState(connected) {
+            isConnected = connected;
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = '已连接';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '未连接';
+            }
+        }
+
+        // ============ 数据发送 ============
+        function sendData() {
+            // 更新曲线数据
+            leftData.push(leftMotor);
+            leftData.shift();
+            rightData.push(rightMotor);
+            rightData.shift();
+
+            // 发送WebSocket数据
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const left = Math.round(leftMotor * 255);
+                const right = Math.round(rightMotor * 255);
+                ws.send(`[${left},${right}]`);
+                pendingReplies++;
+
+                // 检查超时
+                if (pendingReplies > CONNECT_THRESHOLD) {
+                    replyCount = 0;
+                    pendingReplies = 0;
+                    setConnectedState(false);
+                }
+            }
+        }
+
+        // ============ 曲线绘制 ============
+        function drawChart(canvas, data, color) {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.max(1, rect.width);
+            const h = Math.max(1, rect.height);
+
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, w, h);
+
+            const midY = h / 2;
+            const padding = 5;
+            const drawH = h - padding * 2;
+
+            // 中线
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, midY);
+            ctx.lineTo(w, midY);
+            ctx.stroke();
+
+            // 数据曲线
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // 使用贝塞尔曲线平滑
+            ctx.beginPath();
+            const step = w / (data.length - 1);
+
+            for (let i = 0; i < data.length; i++) {
+                const x = i * step;
+                const y = midY - (data[i] * drawH / 2);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    // 平滑连接
+                    const prevX = (i - 1) * step;
+                    const cpX = (prevX + x) / 2;
+                    const prevY = midY - (data[i - 1] * drawH / 2);
+                    ctx.quadraticCurveTo(prevX, prevY, cpX, (prevY + y) / 2);
+                }
+            }
+            // 最后一个点
+            const lastX = (data.length - 1) * step;
+            const lastY = midY - (data[data.length - 1] * drawH / 2);
+            ctx.lineTo(lastX, lastY);
+            ctx.stroke();
+        }
+
+        // ============ 曲线展开/折叠 ============
+        chartToggle.addEventListener('click', () => {
+            chartExpanded = !chartExpanded;
+            chartContainer.classList.toggle('expanded', chartExpanded);
+            chartToggle.querySelector('.toggle-text').textContent = 
+                chartExpanded ? '隐藏曲线' : '显示曲线';
+        });
+
+        // ============ 动画循环 ============
+        function animate() {
+            if (chartExpanded) {
+                drawChart(chartLeftEl, leftData, '#0088ff');
+                drawChart(chartRightEl, rightData, '#00ff00');
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // ============ 初始化 ============
+        connectWebSocket();
+        setInterval(sendData, SEND_INTERVAL);
+        animate();
+
+        // 窗口大小变化时重绘
+        window.addEventListener('resize', () => {
+            if (chartExpanded) {
+                drawChart(chartLeftEl, leftData, '#0088ff');
+                drawChart(chartRightEl, rightData, '#00ff00');
+            }
+        });
+    </script>
+</body>
+</html>
+
+)=====";
+
+#endif
