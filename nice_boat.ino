@@ -32,6 +32,8 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 // 简易解析变量
 int targetLeft = 0;
 int targetRight = 0;
+//超时关闭电机
+unsigned long lastWsReceiveTime = 0;
 
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
@@ -81,7 +83,14 @@ void loop() {
     webSocket.loop();
     server.handleClient();
     MDNS.update();
-
+    // 超过500ms未收到指令，自动关闭电机（附带状态判断避免无效重复操作）
+    if (millis() - lastWsReceiveTime > 500) {
+        if (targetLeft != 0 || targetRight != 0) {
+            targetLeft = 0;
+            targetRight = 0;
+            stopMotors();
+        }
+    }
 }
 
 //webserver
