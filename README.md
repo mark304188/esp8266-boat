@@ -76,4 +76,8 @@
 
 本项目为课程作业，仅供学习与参考，实际使用时请确保安全。
 ![687c57da471e10b3542d33ccea94f10f](https://github.com/user-attachments/assets/5dfd542b-8684-450e-85dd-94e96464e72e)
+船体模型模型基于
+[https://makerworld.com.cn/zh/models/683375-tian-men-ji-hua-022shuang-ti-dao-dan-kuai-ting?from=search#profileId-629997](https://makerworld.com.cn/zh/models/683375-tian-men-ji-hua-022shuang-ti-dao-dan-kuai-ting?from=search#profileId-629997)
+![9e2f87334ed0dd05c98d51ccd3da15c0](https://github.com/user-attachments/assets/5436880a-cf1f-4278-bb4a-a00dd6bd60db)
+
 
